@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+
+  syntra-ai:
+
+    build: .
+
+    container_name: syntra-ai
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service
+      - MODEL_NAME=claude
+
+    volumes:
+      - .:/app
+
+    restart: unless-stopped
