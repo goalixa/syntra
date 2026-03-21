@@ -4,3 +4,7 @@ pydantic
 crewai
 python-dotenv
 requests
+langchain
+chromadb
+redis
+kubernetes
