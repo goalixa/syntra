@@ -89,4 +89,4 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Image digest
-        run: echo "Digest: ${{ steps.meta.outputs.digest }}"
+        run: "echo Digest: ${{ steps.meta.outputs.digest }}"
