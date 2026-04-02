@@ -3,11 +3,13 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/amirrezarezaie/syntra
+  registry: harbor.goalixa.com
+  repository: syntra/app
   pullPolicy: Always
   tag: "latest"
 
-imagePullSecrets: []
+imagePullSecrets:
+  - name: harbor-pull
 nameOverride: ""
 fullnameOverride: ""
 
@@ -36,10 +38,9 @@ service:
 
 ingress:
   enabled: true
-  className: "nginx"
+  className: "traefik"
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
   hosts:
     - host: syntra.goalixa.com
@@ -74,7 +75,9 @@ affinity: {}
 
 env:
   AUTH_SERVICE_URL: "http://auth-service.goalixa-auth.svc.cluster.local"
-  KUBECTL_PATH: "/usr/bin/kubectl"
+  OPENAI_API_KEY: ""
+  CREWAI_API_KEY: ""
+  LOG_LEVEL: "INFO"
   MODEL_NAME: "claude"
   PYTHONUNBUFFERED: "1"
 

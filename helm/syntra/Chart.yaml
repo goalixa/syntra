@@ -1,6 +1,15 @@
 apiVersion: v2
 name: syntra
-description: A Helm chart for Syntra AI Orchestrator
+description: Syntra AI Orchestrator - AI-powered incident analysis and DevOps orchestration for Kubernetes
 type: application
 version: 0.1.0
-appVersion: "1.0.0"
+appVersion: "0.1.0"
+keywords:
+  - ai
+  - devops
+  - kubernetes
+  - incident-response
+  - crewai
+maintainers:
+  - name: Goalixa
+    email: dev@goalixa.com

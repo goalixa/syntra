@@ -1,31 +1,36 @@
-name: Build and Push Docker Image
+name: Build & Deploy Syntra (Helm)
 
 on:
   push:
     branches:
       - main
-      - develop
-    tags:
-      - 'v*'
+    paths-ignore:
+      - '.github/**'
+      - '**.md'
+      - '.argo/**'
+      - 'helm/**'  # Ignore Helm chart changes to avoid loop
   pull_request:
     branches:
       - main
-      - develop
-  workflow_dispatch:
+    paths-ignore:
+      - '.github/**'
+      - '**.md'
+      - '.argo/**'
+      - 'helm/**'
+
+permissions:
+  contents: read
+  actions: read
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  REGISTRY: harbor.goalixa.com
+  IMAGE_REPOSITORY: syntra/app
 
 jobs:
-  build-and-push:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up QEMU
@@ -34,59 +39,121 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
+      - name: Login to Harbor
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
 
-      - name: Extract metadata for Docker
+      - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile
-          platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: Generate deployment summary
-        if: github.event_name != 'pull_request'
+      - name: Get image tag
+        id: tag
         run: |
-          echo "## :docker: Docker Image Built & Pushed :rocket:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Registry:** \`${{ env.REGISTRY }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** \`${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### :ship: Deploy with kubectl" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "# Pull the latest image" >> $GITHUB_STEP_SUMMARY
-          echo "kubectl set image deployment/syntra syntra=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest -n syntra" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# Or with specific tag (replace TAG with actual tag)" >> $GITHUB_STEP_SUMMARY
-          echo "kubectl set image deployment/syntra syntra=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:TAG -n syntra" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          IMAGE_TAG="${GITHUB_SHA:0:7}"
+          echo "tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}:${IMAGE_TAG}" >> $GITHUB_OUTPUT
 
-      - name: Image digest
-        run: "echo Digest: ${{ steps.meta.outputs.digest }}"
+      - name: Setup kubectl
+        run: |
+          if [ -n "${{ secrets.KUBE_CONFIG }}" ]; then
+            echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > /tmp/kubeconfig
+            echo "KUBECONFIG=/tmp/kubeconfig" >> $GITHUB_ENV
+            echo "HAS_KUBE_CONFIG=true" >> $GITHUB_ENV
+          else
+            echo "HAS_KUBE_CONFIG=false" >> $GITHUB_ENV
+          fi
+
+      - name: Update ArgoCD application
+        if: env.HAS_KUBE_CONFIG == 'true'
+        run: |
+          IMAGE_TAG="${{ steps.tag.outputs.tag }}"
+
+          echo "🔄 Updating ArgoCD application with image tag: ${IMAGE_TAG}"
+
+          # Patch ArgoCD app with new Helm parameter
+          kubectl patch application syntra \
+            -n argocd \
+            --type='merge' \
+            -p="{
+              \"spec\": {
+                \"source\": {
+                  \"helm\": {
+                    \"parameters\": [
+                      {
+                        \"name\": \"image.tag\",
+                        \"value\": \"${IMAGE_TAG}\"
+                      }
+                    ]
+                  }
+                }
+              }
+            }"
+
+          # Trigger immediate sync
+          kubectl annotate application syntra \
+            -n argocd \
+            "force-sync-at=$(date +%s)" \
+            --overwrite
+
+          echo "✅ ArgoCD application updated"
+
+      - name: Summary
+        run: |
+          echo "## ✅ Build & Deploy Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag:** \`${{ steps.tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Full Image:** \`${{ steps.tag.outputs.image }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry:** \`${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ env.HAS_KUBE_CONFIG }}" = "true" ]; then
+            echo "- **Deployment Method:** Helm (ArgoCD - Auto-sync)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔄 ArgoCD will now:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Detect Helm parameter change" >> $GITHUB_STEP_SUMMARY
+            echo "2. Render Helm chart with image tag: \`${{ steps.tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "3. Deploy to Kubernetes" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Deployment Method:** Helm (Manual sync required)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ⚠️ Manual Action Required" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The \`KUBE_CONFIG\` secret is not configured. Please:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "1. **Add the secret** to your GitHub repository:" >> $GITHUB_STEP_SUMMARY
+            echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "   # Encode your kubeconfig" >> $GITHUB_STEP_SUMMARY
+            echo "   cat ~/.kube/config | base64 -w 0" >> $GITHUB_STEP_SUMMARY
+            echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "2. **Add it as a secret** named \`KUBE_CONFIG\` in repository settings" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "3. **Or manually trigger ArgoCD sync**:" >> $GITHUB_STEP_SUMMARY
+            echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "   kubectl patch application syntra -n argocd --type='merge' \\" >> $GITHUB_STEP_SUMMARY
+            echo "     -p='{\"spec\":{\"source\":{\"helm\":{\"parameters\":[{\"name\":\"image.tag\",\"value\":\"${{ steps.tag.outputs.tag }}\"}]}}}}'" >> $GITHUB_STEP_SUMMARY
+            echo "   kubectl annotate application syntra -n argocd \"force-sync-at=\$(date +%s)\" --overwrite" >> $GITHUB_STEP_SUMMARY
+            echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
