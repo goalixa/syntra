@@ -6,7 +6,7 @@ Provides tool functions that agents can call to interact with Claude/LLM service
 
 import sys
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
