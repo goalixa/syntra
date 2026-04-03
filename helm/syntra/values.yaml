@@ -57,6 +57,9 @@ ingress:
           pathType: Prefix
         - path: /api/admin
           pathType: Prefix
+        # Catch-all (must be last)
+        - path: /
+          pathType: Prefix
     # CLI API: apisyntra.goalixa.com
     - host: apisyntra.goalixa.com
       paths:

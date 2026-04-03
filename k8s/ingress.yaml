@@ -49,6 +49,14 @@ spec:
                 name: syntra
                 port:
                   number: 8000
+          # Catch-all (must be last)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: syntra
+                port:
+                  number: 8000
 
     # CLI API: apisyntra.goalixa.com
     - host: apisyntra.goalixa.com
