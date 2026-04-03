@@ -30,7 +30,6 @@ spec:
   ingressClassName: nginx
   tls:
     # Cloudflare provides SSL termination
-    # Empty secret allows NGINX to handle the certificate
     - hosts:
         - syntra.goalixa.com
         - apisyntra.goalixa.com
@@ -46,35 +45,35 @@ spec:
               service:
                 name: syntra
                 port:
-                  number: 80
+                  number: 8000
           - path: /admin/static
             pathType: Prefix
             backend:
               service:
                 name: syntra
                 port:
-                  number: 80
+                  number: 8000
           - path: /admin
             pathType: Prefix
             backend:
               service:
                 name: syntra
                 port:
-                  number: 80
+                  number: 8000
           - path: /api/auth
             pathType: Prefix
             backend:
               service:
                 name: syntra
                 port:
-                  number: 80
+                  number: 8000
           - path: /api/admin
             pathType: Prefix
             backend:
               service:
                 name: syntra
                 port:
-                  number: 80
+                  number: 8000
 
     # CLI API: apisyntra.goalixa.com
     - host: apisyntra.goalixa.com
@@ -86,39 +85,39 @@ spec:
               service:
                 name: syntra
                 port:
-                  number: 80
+                  number: 8000
           - path: /api/health
             pathType: Exact
             backend:
               service:
                 name: syntra
                 port:
-                  number: 80
+                  number: 8000
           - path: /api/rate-limit
             pathType: Exact
             backend:
               service:
                 name: syntra
                 port:
-                  number: 80
+                  number: 8000
           - path: /api
             pathType: Prefix
             backend:
               service:
                 name: syntra
                 port:
-                  number: 80
+                  number: 8000
           - path: /docs
             pathType: Exact
             backend:
               service:
                 name: syntra
                 port:
-                  number: 80
+                  number: 8000
           - path: /
             pathType: Exact
             backend:
               service:
                 name: syntra
                 port:
-                  number: 80
+                  number: 8000
