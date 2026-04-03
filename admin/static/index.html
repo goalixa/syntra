@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Syntra Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/static/css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="screen active">
+      <div class="auth-container">
+        <div class="auth-logo">
+          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="32" cy="32" r="30" stroke="currentColor" stroke-width="4"/>
+            <path d="M32 16V32L44 44" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="32" cy="32" r="4" fill="currentColor"/>
+          </svg>
+        </div>
+        <h1 class="auth-title">Syntra Admin</h1>
+        <p class="auth-subtitle">AI-Powered DevOps Orchestration</p>
+
+        <div class="auth-card">
+          <div class="auth-status" id="auth-status">
+            <span class="status-indicator"></span>
+            <span class="status-text">Not authenticated</span>
+          </div>
+
+          <button id="auth-button" class="btn-primary btn-large">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10 2L2 10L10 18M18 10H2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Authenticate with Syntra
+          </button>
+
+          <p class="auth-hint">
+            Authenticate with your Syntra credentials
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard Screen -->
+    <div id="dashboard-screen" class="screen">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-logo">
+            <svg width="32" height="32" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="32" cy="32" r="30" stroke="currentColor" stroke-width="4"/>
+              <path d="M32 16V32L44 44" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+              <circle cx="32" cy="32" r="4" fill="currentColor"/>
+            </svg>
+          </div>
+          <span class="sidebar-title">Syntra Admin</span>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-view="overview">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM13 10a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2z" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+            Overview
+          </button>
+          <button class="nav-item" data-view="agents">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="10" cy="7" r="3" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M4 17c0-3.31 2.69-6 6-6s6 2.69 6 6" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+            Agents
+          </button>
+          <button class="nav-item" data-view="config">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="10" cy="10" r="3.5" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M10 2v2M10 16v2M18 10h-2M4 10H2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="m15.66 4.34-1.41 1.41M5.75 14.25l-1.41 1.41M15.66 15.66l-1.41-1.41M5.75 5.75L4.34 4.34" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Configuration
+          </button>
+          <button class="nav-item" data-view="logs">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 4h12M4 8h12M4 12h8M4 16h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Activity Logs
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="user-info">
+            <div class="user-avatar">
+              <span id="user-initials">A</span>
+            </div>
+            <div class="user-details">
+              <span class="user-name" id="user-name">Admin User</span>
+              <span class="user-role">Administrator</span>
+            </div>
+          </div>
+          <button id="logout-button" class="btn-logout">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 3L2 8l4 5M2 8h9.5a2.5 2.5 0 002.5-2.5v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="top-bar">
+          <h1 class="page-title" id="page-title">Overview</h1>
+          <div class="top-bar-actions">
+            <button class="icon-button" id="refresh-button" title="Refresh">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 4v6h6M16 16v-6h-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div class="connection-status" id="connection-status">
+              <span class="status-dot status-dot-connected"></span>
+              Connected
+            </div>
+          </div>
+        </header>
+
+        <div class="content-area" id="content-area">
+          <!-- Dynamic content loaded here -->
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/admin/static/js/app.js"></script>
+</body>
+</html>
