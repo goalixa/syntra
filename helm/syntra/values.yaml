@@ -80,5 +80,6 @@ env:
   LOG_LEVEL: "INFO"
   MODEL_NAME: "claude"
   PYTHONUNBUFFERED: "1"
+  CREWAI_STORAGE_PATH: "/tmp/crewai"
 
 namespace: syntra
