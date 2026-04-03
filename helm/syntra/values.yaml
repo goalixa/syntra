@@ -40,18 +40,9 @@ ingress:
   enabled: true
   className: "traefik"
   annotations:
-    # Traefik entrypoints
+    # Simple Traefik configuration for Cloudflare proxy mode
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    # TLS configuration (Cloudflare provides SSL)
     traefik.ingress.kubernetes.io/router.tls: "true"
-    traefik.ingress.kubernetes.io/router.tls.certresolver: "cloudflare"
-    # Security headers
-    traefik.ingress.kubernetes.io/middleware.sslheader: "true"
-    traefik.ingress.kubernetes.io/middleware.browserxssfilter: "true"
-    traefik.ingress.kubernetes.io/middleware.contentType: "true"
-    traefik.ingress.kubernetes.io/middleware.frameDeny: "true"
-    # Rate limiting for API
-    traefik.ingress.kubernetes.io/middleware.rateLimit: "true"
   hosts:
     # Admin Panel: syntra.goalixa.com
     - host: syntra.goalixa.com

@@ -4,11 +4,9 @@ metadata:
   name: syntra
   namespace: syntra
   annotations:
-    # Traefik configuration
+    # Simple Traefik configuration for Cloudflare proxy mode
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    # TLS configuration (Cloudflare provides SSL)
     traefik.ingress.kubernetes.io/router.tls: "true"
-    traefik.ingress.kubernetes.io/router.tls.certresolver: "cloudflare"
 spec:
   ingressClassName: traefik
   tls:
