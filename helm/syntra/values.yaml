@@ -69,6 +69,7 @@ ingress:
     # CLI API: apisyntra.goalixa.com
     - host: apisyntra.goalixa.com
       paths:
+        # API routes (order matters: specific before general)
         - path: /api/ask
           pathType: Exact
         - path: /api/health
@@ -77,10 +78,16 @@ ingress:
           pathType: Exact
         - path: /api
           pathType: Prefix
+        # FastAPI docs (Prefix for assets like /docs/oauth2-redirect)
         - path: /docs
+          pathType: Prefix
+        - path: /redoc
+          pathType: Prefix
+        - path: /openapi.json
           pathType: Exact
+        # Catch-all (must be last)
         - path: /
-          pathType: Exact
+          pathType: Prefix
   tls:
     # Cloudflare provides SSL termination
     - secretName: syntra-tls
