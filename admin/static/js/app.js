@@ -162,6 +162,10 @@ class SyntraAdmin {
           pageTitle.textContent = 'Overview';
           await this.loadOverview(contentArea);
           break;
+        case 'users':
+          pageTitle.textContent = 'Users';
+          await this.loadUsers(contentArea);
+          break;
         case 'agents':
           pageTitle.textContent = 'Agents';
           await this.loadAgents(contentArea);
@@ -320,6 +324,614 @@ class SyntraAdmin {
         </div>
       </div>
     `).join('');
+  }
+
+  // ============================================================
+  // USER MANAGEMENT
+  // ============================================================
+
+  async loadUsers(container) {
+    try {
+      const users = await this.apiCall('/api/admin/users');
+      this.renderUsers(container, users);
+    } catch (error) {
+      this.showToast('Failed to load users', 'error');
+      console.error(error);
+    }
+  }
+
+  renderUsers(container, users) {
+    this.currentUsers = users;
+
+    container.innerHTML = `
+      <div class="users-filters">
+        <div class="filter-group">
+          <input type="text" id="user-search" class="filter-input" placeholder="Search users...">
+        </div>
+        <select id="role-filter" class="filter-select">
+          <option value="">All Roles</option>
+          <option value="admin">Admin</option>
+          <option value="developer">Developer</option>
+          <option value="operator">Operator</option>
+          <option value="viewer">Viewer</option>
+        </select>
+        <select id="status-filter" class="filter-select">
+          <option value="">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="suspended">Suspended</option>
+          <option value="pending">Pending</option>
+        </select>
+        <button id="add-user-btn" class="btn-add-user">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          Add User
+        </button>
+      </div>
+
+      <div class="users-table-container">
+        <table class="users-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Department</th>
+              <th>Last Login</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-table-body">
+            ${this.renderUserRows(users)}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    // Bind filter events
+    document.getElementById('user-search').addEventListener('input', (e) => this.filterUsers(e.target.value));
+    document.getElementById('role-filter').addEventListener('change', () => this.applyFilters());
+    document.getElementById('status-filter').addEventListener('change', () => this.applyFilters());
+    document.getElementById('add-user-btn').addEventListener('click', () => this.showUserModal());
+  }
+
+  renderUserRows(users) {
+    if (users.length === 0) {
+      return `
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 2rem; color: var(--color-text-muted);">
+            No users found
+          </td>
+        </tr>
+      `;
+    }
+
+    return users.map(user => `
+      <tr data-user-id="${user.id}">
+        <td>
+          <div class="user-table-cell">
+            <div class="user-table-avatar">${user.name[0].toUpperCase()}</div>
+            <div class="user-table-info">
+              <div class="user-table-name">${user.name}</div>
+              <div class="user-table-email">${user.email}</div>
+            </div>
+          </div>
+        </td>
+        <td><span class="badge badge-${user.role}">${user.role}</span></td>
+        <td><span class="badge badge-${user.status}">${user.status}</span></td>
+        <td>${user.department || '-'}</td>
+        <td>${user.last_login ? this.formatDate(user.last_login) : 'Never'}</td>
+        <td>
+          <div class="user-actions">
+            <button class="btn-icon btn-icon-edit" onclick="syntraAdmin.viewUserDetail('${user.id}')" title="View Details">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 3L3 8l5 5M13 8H3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="btn-icon btn-icon-edit" onclick="syntraAdmin.editUser('${user.id}')" title="Edit">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2 11.5l8-8M11 2l3 3M2 14h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
+            ${user.status === 'active' ? `
+              <button class="btn-icon btn-icon-suspend" onclick="syntraAdmin.suspendUser('${user.id}')" title="Suspend">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M5 8h6" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+              </button>
+            ` : `
+              <button class="btn-icon" onclick="syntraAdmin.activateUser('${user.id}')" title="Activate" style="color: var(--color-success)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </button>
+            `}
+            <button class="btn-icon btn-icon-delete" onclick="syntraAdmin.deleteUser('${user.id}')" title="Delete">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 5l6 6M11 5l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  filterUsers(searchTerm) {
+    this.currentSearchTerm = searchTerm.toLowerCase();
+    this.applyFilters();
+  }
+
+  applyFilters() {
+    const roleFilter = document.getElementById('role-filter')?.value;
+    const statusFilter = document.getElementById('status-filter')?.value;
+
+    let filtered = this.currentUsers;
+
+    if (this.currentSearchTerm) {
+      filtered = filtered.filter(user =>
+        user.name.toLowerCase().includes(this.currentSearchTerm) ||
+        user.email.toLowerCase().includes(this.currentSearchTerm)
+      );
+    }
+
+    if (roleFilter) {
+      filtered = filtered.filter(user => user.role === roleFilter);
+    }
+
+    if (statusFilter) {
+      filtered = filtered.filter(user => user.status === statusFilter);
+    }
+
+    const tbody = document.getElementById('users-table-body');
+    if (tbody) {
+      tbody.innerHTML = this.renderUserRows(filtered);
+    }
+  }
+
+  async viewUserDetail(userId) {
+    try {
+      const [user, usage, apiKeys, accessLogs] = await Promise.all([
+        this.apiCall(`/api/admin/users/${userId}`),
+        this.apiCall(`/api/admin/users/${userId}/usage?period=daily`),
+        this.apiCall(`/api/admin/users/${userId}/api-keys`),
+        this.apiCall(`/api/admin/users/${userId}/access-logs?limit=20`)
+      ]);
+
+      this.renderUserDetail(user, usage, apiKeys, accessLogs);
+    } catch (error) {
+      this.showToast('Failed to load user details', 'error');
+      console.error(error);
+    }
+  }
+
+  renderUserDetail(user, usage, apiKeys, accessLogs) {
+    const contentArea = document.getElementById('content-area');
+    const pageTitle = document.getElementById('page-title');
+
+    pageTitle.innerHTML = `
+      <button onclick="syntraAdmin.loadUsers(document.getElementById('content-area'))" style="background: none; border: none; color: var(--color-text-muted); cursor: pointer; margin-right: 0.5rem;">
+        ← Users
+      </button>
+      ${user.name}
+    `;
+
+    contentArea.innerHTML = `
+      <div class="user-detail-header">
+        <div class="user-detail-avatar-large">${user.name[0].toUpperCase()}</div>
+        <div class="user-detail-info">
+          <h2>${user.name}</h2>
+          <div class="user-detail-email">${user.email}</div>
+          <div class="user-detail-badges">
+            <span class="badge badge-${user.role}">${user.role}</span>
+            <span class="badge badge-${user.status}">${user.status}</span>
+            ${user.department ? `<span class="badge badge-viewer">${user.department}</span>` : ''}
+          </div>
+        </div>
+        <div style="margin-left: auto;">
+          <button class="btn-primary" onclick="syntraAdmin.editUser('${user.id}')">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2 11.5l8-8M11 2l3 3M2 14h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Edit User
+          </button>
+        </div>
+      </div>
+
+      <div class="user-detail-tabs">
+        <button class="user-detail-tab active" data-tab="overview">Overview</button>
+        <button class="user-detail-tab" data-tab="usage">Usage</button>
+        <button class="user-detail-tab" data-tab="api-keys">API Keys</button>
+        <button class="user-detail-tab" data-tab="activity">Activity</button>
+        <button class="user-detail-tab" data-tab="permissions">Permissions</button>
+      </div>
+
+      <div id="user-tab-content">
+        ${this.renderUserOverviewTab(user, usage)}
+      </div>
+    `;
+
+    this.currentUserDetail = { user, usage, apiKeys, accessLogs };
+
+    // Bind tab events
+    document.querySelectorAll('.user-detail-tab').forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        document.querySelectorAll('.user-detail-tab').forEach(t => t.classList.remove('active'));
+        e.target.classList.add('active');
+        this.loadUserTab(e.target.dataset.tab);
+      });
+    });
+  }
+
+  renderUserOverviewTab(user, usage) {
+    return `
+      <div class="usage-stats-grid">
+        <div class="usage-stat">
+          <div class="usage-stat-label">Total Requests (Today)</div>
+          <div class="usage-stat-value">${usage.total_requests}</div>
+          <div class="usage-stat-change ${usage.failed_requests > 0 ? 'negative' : 'positive'}">
+            ${usage.failed_requests} failed
+          </div>
+        </div>
+        <div class="usage-stat">
+          <div class="usage-stat-label">Success Rate</div>
+          <div class="usage-stat-value">${usage.successful_requests > 0 ? ((usage.successful_requests / usage.total_requests) * 100).toFixed(1) : 0}%</div>
+          <div class="usage-stat-change positive">
+            Target: 95%
+          </div>
+        </div>
+        <div class="usage-stat">
+          <div class="usage-stat-label">Tokens Used</div>
+          <div class="usage-stat-value">${usage.tokens_used.toLocaleString()}</div>
+          <div class="usage-stat-change">
+            ~$${usage.cost_estimate.toFixed(2)} cost
+          </div>
+        </div>
+        <div class="usage-stat">
+          <div class="usage-stat-label">Avg Response Time</div>
+          <div class="usage-stat-value">${usage.avg_response_time}s</div>
+          <div class="usage-stat-change ${usage.avg_response_time < 3 ? 'positive' : 'negative'}">
+            ${usage.avg_response_time < 3 ? 'Good' : 'Slow'}
+          </div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-card-header">
+          <h2 class="section-card-title">User Information</h2>
+        </div>
+        <div class="section-card-content">
+          <div class="form-group">
+            <label class="form-label">User ID</label>
+            <input type="text" class="form-input" value="${user.id}" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="text" class="form-input" value="${user.email}" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Created At</label>
+            <input type="text" class="form-input" value="${this.formatDate(user.created_at)}" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Login</label>
+            <input type="text" class="form-input" value="${user.last_login ? this.formatDate(user.last_login) : 'Never'}" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Auth Provider</label>
+            <input type="text" class="form-input" value="${user.auth_provider}" disabled>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  loadUserTab(tabName) {
+    const content = document.getElementById('user-tab-content');
+
+    switch (tabName) {
+      case 'overview':
+        content.innerHTML = this.renderUserOverviewTab(this.currentUserDetail.user, this.currentUserDetail.usage);
+        break;
+      case 'usage':
+        content.innerHTML = this.renderUsageTab(this.currentUserDetail.usage);
+        break;
+      case 'api-keys':
+        content.innerHTML = this.renderApiKeysTab(this.currentUserDetail.apiKeys);
+        break;
+      case 'activity':
+        content.innerHTML = this.renderActivityTab(this.currentUserDetail.accessLogs);
+        break;
+      case 'permissions':
+        content.innerHTML = this.renderPermissionsTab(this.currentUserDetail.user);
+        break;
+    }
+  }
+
+  renderUsageTab(usage) {
+    return `
+      <div class="usage-chart">
+        <div class="usage-chart-header">
+          <h3 class="usage-chart-title">Usage Breakdown</h3>
+          <div class="usage-chart-period">
+            <button class="period-button active">Daily</button>
+            <button class="period-button">Weekly</button>
+            <button class="period-button">Monthly</button>
+          </div>
+        </div>
+        <div style="margin-top: 1rem;">
+          ${Object.entries(usage.breakdown || {}).map(([endpoint, count]) => `
+            <div style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--color-border);">
+              <span style="color: var(--color-text-muted); font-family: monospace;">${endpoint}</span>
+              <span style="font-weight: 600;">${count} requests</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  renderApiKeysTab(apiKeys) {
+    return `
+      <button class="btn-create-key" onclick="syntraAdmin.createApiKey()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Create API Key
+      </button>
+      <div class="api-keys-list">
+        ${apiKeys.length > 0 ? apiKeys.map(key => `
+          <div class="api-key-item">
+            <div class="api-key-info">
+              <div class="api-key-name">${key.name}</div>
+              <div class="api-key-value">${key.key_prefix}••••••••••••</div>
+              <div class="api-key-meta">
+                <span>Created: ${this.formatDate(key.created_at)}</span>
+                ${key.last_used ? `<span>Last used: ${this.formatDate(key.last_used)}</span>` : '<span>Never used</span>'}
+                ${key.expires_at ? `<span>Expires: ${this.formatDate(key.expires_at)}</span>` : ''}
+              </div>
+            </div>
+            <div>
+              <span class="badge ${key.is_active ? 'badge-active' : 'badge-inactive'}">${key.is_active ? 'Active' : 'Inactive'}</span>
+              ${key.is_active ? `
+                <button class="btn-icon btn-icon-delete" onclick="syntraAdmin.revokeApiKey('${key.id}')" style="margin-left: 1rem;">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M5 5l6 6M11 5l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `).join('') : '<p style="color: var(--color-text-muted); text-align: center; padding: 2rem;">No API keys found</p>'}
+      </div>
+    `;
+  }
+
+  renderActivityTab(accessLogs) {
+    return `
+      <div class="section-card">
+        <div class="section-card-header">
+          <h2 class="section-card-title">Recent Access Logs</h2>
+        </div>
+        <div class="section-card-content">
+          <table class="access-log-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Action</th>
+                <th>Resource</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${accessLogs.map(log => `
+                <tr>
+                  <td style="white-space: nowrap; color: var(--color-text-muted);">${this.formatDateTime(log.timestamp)}</td>
+                  <td>${log.action}</td>
+                  <td style="font-family: monospace;">${log.resource}</td>
+                  <td>
+                    <span class="badge ${log.granted ? 'badge-active' : 'badge-suspended'}">
+                      ${log.granted ? 'Granted' : 'Denied'}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  renderPermissionsTab(user) {
+    return `
+      <div class="section-card">
+        <div class="section-card-header">
+          <h2 class="section-card-title">User Permissions</h2>
+        </div>
+        <div class="section-card-content">
+          <div class="form-group">
+            <label class="form-label">Role</label>
+            <input type="text" class="form-input" value="${user.role}" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Permissions</label>
+            <div class="permissions-list">
+              ${user.permissions && user.permissions.length > 0
+                ? user.permissions.map(p => `<span class="permission-tag">${p}</span>`).join('')
+                : '<span style="color: var(--color-text-muted);">No specific permissions assigned</span>'
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // User Actions
+  showUserModal(user = null) {
+    const isEdit = user !== null;
+
+    const modalHtml = `
+      <div class="modal-overlay" id="user-modal">
+        <div class="modal">
+          <div class="modal-header">
+            <h3 class="modal-title">${isEdit ? 'Edit User' : 'Add New User'}</h3>
+            <button class="btn-close-modal" onclick="syntraAdmin.closeUserModal()">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 4l12 12M4 16L16 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form id="user-form">
+              <div class="form-group">
+                <label class="form-label">Name *</label>
+                <input type="text" name="name" class="form-input" value="${user?.name || ''}" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email *</label>
+                <input type="email" name="email" class="form-input" value="${user?.email || ''}" required ${isEdit ? 'disabled' : ''}>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Role *</label>
+                <select name="role" class="form-select" required>
+                  <option value="viewer" ${user?.role === 'viewer' ? 'selected' : ''}>Viewer</option>
+                  <option value="operator" ${user?.role === 'operator' ? 'selected' : ''}>Operator</option>
+                  <option value="developer" ${user?.role === 'developer' ? 'selected' : ''}>Developer</option>
+                  <option value="admin" ${user?.role === 'admin' ? 'selected' : ''}>Admin</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Department</label>
+                <input type="text" name="department" class="form-input" value="${user?.department || ''}">
+              </div>
+              ${!isEdit ? `
+                <div class="form-group">
+                  <label class="form-label">Password</label>
+                  <input type="password" name="password" class="form-input">
+                  <p class="form-hint">Leave empty to generate automatic password</p>
+                </div>
+              ` : ''}
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" onclick="syntraAdmin.closeUserModal()">Cancel</button>
+            <button class="btn-primary" onclick="syntraAdmin.saveUser('${user?.id || ''}')">${isEdit ? 'Update' : 'Create'} User</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    setTimeout(() => document.getElementById('user-modal').classList.add('active'), 10);
+  }
+
+  closeUserModal() {
+    const modal = document.getElementById('user-modal');
+    if (modal) {
+      modal.classList.remove('active');
+      setTimeout(() => modal.remove(), 300);
+    }
+  }
+
+  async saveUser(userId) {
+    const form = document.getElementById('user-form');
+    const formData = new FormData(form);
+    const userData = Object.fromEntries(formData.entries());
+
+    try {
+      if (userId) {
+        await this.apiCall(`/api/admin/users/${userId}`, {
+          method: 'PUT',
+          body: JSON.stringify(userData)
+        });
+        this.showToast('User updated successfully', 'success');
+      } else {
+        await this.apiCall('/api/admin/users', {
+          method: 'POST',
+          body: JSON.stringify(userData)
+        });
+        this.showToast('User created successfully', 'success');
+      }
+
+      this.closeUserModal();
+      this.loadUsers(document.getElementById('content-area'));
+    } catch (error) {
+      this.showToast(error.message || 'Failed to save user', 'error');
+    }
+  }
+
+  editUser(userId) {
+    const user = this.currentUsers.find(u => u.id === userId);
+    if (user) {
+      this.showUserModal(user);
+    }
+  }
+
+  async suspendUser(userId) {
+    if (!confirm('Are you sure you want to suspend this user?')) return;
+
+    try {
+      await this.apiCall(`/api/admin/users/${userId}/suspend`, { method: 'POST' });
+      this.showToast('User suspended successfully', 'success');
+      this.loadUsers(document.getElementById('content-area'));
+    } catch (error) {
+      this.showToast('Failed to suspend user', 'error');
+    }
+  }
+
+  async activateUser(userId) {
+    try {
+      await this.apiCall(`/api/admin/users/${userId}/activate`, { method: 'POST' });
+      this.showToast('User activated successfully', 'success');
+      this.loadUsers(document.getElementById('content-area'));
+    } catch (error) {
+      this.showToast('Failed to activate user', 'error');
+    }
+  }
+
+  async deleteUser(userId) {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+
+    try {
+      await this.apiCall(`/api/admin/users/${userId}`, { method: 'DELETE' });
+      this.showToast('User deleted successfully', 'success');
+      this.loadUsers(document.getElementById('content-area'));
+    } catch (error) {
+      this.showToast('Failed to delete user', 'error');
+    }
+  }
+
+  async createApiKey() {
+    const name = prompt('Enter a name for this API key:');
+    if (!name) return;
+
+    try {
+      const result = await this.apiCall(`/api/admin/users/${this.currentUserDetail.user.id}/api-keys`, {
+        method: 'POST',
+        body: JSON.stringify({ name })
+      });
+
+      alert(`API Key created!\n\nKey: ${result.raw_key}\n\nSave this key now - you won't be able to see it again!`);
+      this.viewUserDetail(this.currentUserDetail.user.id);
+    } catch (error) {
+      this.showToast('Failed to create API key', 'error');
+    }
+  }
+
+  async revokeApiKey(keyId) {
+    if (!confirm('Are you sure you want to revoke this API key?')) return;
+
+    try {
+      await this.apiCall(`/api/admin/api-keys/${keyId}`, { method: 'DELETE' });
+      this.showToast('API key revoked', 'success');
+      this.viewUserDetail(this.currentUserDetail.user.id);
+    } catch (error) {
+      this.showToast('Failed to revoke API key', 'error');
+    }
   }
 
   async loadAgents(container) {
@@ -561,6 +1173,64 @@ class SyntraAdmin {
       minute: '2-digit',
       second: '2-digit'
     });
+  }
+
+  formatDate(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    });
+  }
+
+  formatDateTime(timestamp) {
+    const date = new Date(timestamp);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  showToast(message, type = 'info') {
+    // Create toast container if it doesn't exist
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+    }
+
+    const icons = {
+      success: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="currentColor"/><path d="M6 10l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>',
+      error: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="currentColor"/><path d="M7 7l6 6M7 13l6-6" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>',
+      warning: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="currentColor"/><path d="M10 6v4M10 13h.01" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>',
+      info: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="currentColor"/><path d="M10 6v8M10 15h.01" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>'
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+      <div class="toast-icon">${icons[type]}</div>
+      <div>${message}</div>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.animation = 'slideIn 0.3s ease reverse';
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
   }
 
   setupRefreshInterval() {
