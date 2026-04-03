@@ -45,7 +45,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://syntra.goalixa.com",
-        "https://api.goalixa.com",
+        "https://apisyntra.goalixa.com",
         "http://localhost:8000",
         "http://localhost:3000"
     ],
@@ -96,18 +96,23 @@ def root():
         "version": settings.API_VERSION,
         "status": "running",
         "admin_panel": "👉 https://syntra.goalixa.com/admin",
-        "api_endpoint": "👉 https://api.goalixa.com/api",
-        "api_docs": "👉 https://api.goalixa.com/docs",
+        "api_endpoint": "👉 https://apisyntra.goalixa.com/api",
+        "api_docs": "👉 https://apisyntra.goalixa.com/docs",
         "authentication": {
-            "admin_panel": "SSO + MFA (in production)",
+            "admin_panel": "Goalixa Auth Service (SSO)",
             "cli_api": "API Key via X-API-Key header"
+        },
+        "domains": {
+            "admin": "syntra.goalixa.com",
+            "api": "apisyntra.goalixa.com"
         },
         "endpoints": {
             "POST /api/ask": "AI incident analysis (requires API key)",
             "GET /api/health": "Health check (no auth)",
             "GET /api/rate-limit": "Check rate limit status",
             "GET /admin": "Admin panel UI",
-            "POST /api/admin/auth": "Admin authentication"
+            "GET /admin/login": "Admin login page",
+            "POST /api/auth/login": "Authentication (via Goalixa Auth)"
         }
     }
 
@@ -130,12 +135,13 @@ async def startup_event():
 ║   🚀 {settings.PROJECT_NAME} v{settings.API_VERSION}                    ║
 ║                                                            ║
 ║   Admin Panel: https://syntra.goalixa.com/admin         ║
-║   API Endpoint: https://api.goalixa.com/api             ║
-║   API Docs:    https://api.goalixa.com/docs             ║
+║   API Endpoint: https://apisyntra.goalixa.com/api       ║
+║   API Docs:    https://apisyntra.goalixa.com/docs       ║
 ║                                                            ║
 ║   ✅ Security headers enabled                             ║
 ║   ✅ Rate limiting active                                 ║
 ║   ✅ API key authentication                               ║
+║   ✅ Goalixa Auth integration                            ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
     """)

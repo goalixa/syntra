@@ -6,21 +6,119 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Security headers
+    nginx.ingress.kubernetes.io/security-headers: |
+      X-Frame-Options "DENY";
+      X-Content-Type-Options "nosniff";
+      X-XSS-Protection "1; mode=block";
+      Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    # CORS for both domains
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://syntra.goalixa.com, https://apisyntra.goalixa.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, X-API-Key"
+    nginx.ingress.kubernetes.io/cors-max-age: "86400"
+    # Rate limiting for API
+    nginx.ingress.kubernetes.io/limit-rps: "60"
+    nginx.ingress.kubernetes.io/limit-burst: "100"
+    # Proxy settings
+    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.ingress.kubernetes.io/proxy-request-buffering: "on"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
 spec:
   ingressClassName: nginx
   tls:
-  - hosts:
-    - syntra.goalixa.com
-    secretName: syntra-tls
+    # Cloudflare provides SSL termination
+    # Empty secret allows NGINX to handle the certificate
+    - hosts:
+        - syntra.goalixa.com
+        - apisyntra.goalixa.com
+      secretName: syntra-tls
   rules:
-  - host: syntra.goalixa.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: syntra
-            port:
-              number: 80
+    # Admin Panel: syntra.goalixa.com
+    - host: syntra.goalixa.com
+      http:
+        paths:
+          - path: /admin/login
+            pathType: Prefix
+            backend:
+              service:
+                name: syntra
+                port:
+                  number: 80
+          - path: /admin/static
+            pathType: Prefix
+            backend:
+              service:
+                name: syntra
+                port:
+                  number: 80
+          - path: /admin
+            pathType: Prefix
+            backend:
+              service:
+                name: syntra
+                port:
+                  number: 80
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: syntra
+                port:
+                  number: 80
+          - path: /api/admin
+            pathType: Prefix
+            backend:
+              service:
+                name: syntra
+                port:
+                  number: 80
+
+    # CLI API: apisyntra.goalixa.com
+    - host: apisyntra.goalixa.com
+      http:
+        paths:
+          - path: /api/ask
+            pathType: Exact
+            backend:
+              service:
+                name: syntra
+                port:
+                  number: 80
+          - path: /api/health
+            pathType: Exact
+            backend:
+              service:
+                name: syntra
+                port:
+                  number: 80
+          - path: /api/rate-limit
+            pathType: Exact
+            backend:
+              service:
+                name: syntra
+                port:
+                  number: 80
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: syntra
+                port:
+                  number: 80
+          - path: /docs
+            pathType: Exact
+            backend:
+              service:
+                name: syntra
+                port:
+                  number: 80
+          - path: /
+            pathType: Exact
+            backend:
+              service:
+                name: syntra
+                port:
+                  number: 80

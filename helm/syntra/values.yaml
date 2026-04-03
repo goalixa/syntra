@@ -29,7 +29,7 @@ securityContext:
   allowPrivilegeEscalation: false
   capabilities:
     drop:
-    - ALL
+      - ALL
   readOnlyRootFilesystem: false
 
 service:
@@ -40,17 +40,53 @@ ingress:
   enabled: true
   className: "traefik"
   annotations:
+    # Traefik entrypoints
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # TLS configuration (Cloudflare provides SSL)
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.tls.certresolver: "cloudflare"
+    # Security headers
+    traefik.ingress.kubernetes.io/middleware.sslheader: "true"
+    traefik.ingress.kubernetes.io/middleware.browserxssfilter: "true"
+    traefik.ingress.kubernetes.io/middleware.contentType: "true"
+    traefik.ingress.kubernetes.io/middleware.frameDeny: "true"
+    # Rate limiting for API
+    traefik.ingress.kubernetes.io/middleware.rateLimit: "true"
   hosts:
+    # Admin Panel: syntra.goalixa.com
     - host: syntra.goalixa.com
       paths:
-        - path: /
+        - path: /admin/login
           pathType: Prefix
+        - path: /admin/static
+          pathType: Prefix
+        - path: /admin
+          pathType: Prefix
+        - path: /api/auth
+          pathType: Prefix
+        - path: /api/admin
+          pathType: Prefix
+    # CLI API: apisyntra.goalixa.com
+    - host: apisyntra.goalixa.com
+      paths:
+        - path: /api/ask
+          pathType: Exact
+        - path: /api/health
+          pathType: Exact
+        - path: /api/rate-limit
+          pathType: Exact
+        - path: /api
+          pathType: Prefix
+        - path: /docs
+          pathType: Exact
+        - path: /
+          pathType: Exact
   tls:
+    # Cloudflare provides SSL termination
     - secretName: syntra-tls
       hosts:
         - syntra.goalixa.com
+        - apisyntra.goalixa.com
 
 resources:
   limits:

@@ -127,9 +127,11 @@ class SyntraLogin {
       ...options.headers
     };
 
-    const response = await fetch(`${this.apiBase}${endpoint}`, {
+    // Use current origin (works on both syntra.goalixa.com and localhost)
+    const response = await fetch(`${window.location.origin}${endpoint}`, {
       ...options,
-      headers
+      headers,
+      credentials: 'include'  // Include cookies for auth
     });
 
     if (!response.ok) {
