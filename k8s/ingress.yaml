@@ -4,30 +4,13 @@ metadata:
   name: syntra
   namespace: syntra
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    # Security headers
-    nginx.ingress.kubernetes.io/security-headers: |
-      X-Frame-Options "DENY";
-      X-Content-Type-Options "nosniff";
-      X-XSS-Protection "1; mode=block";
-      Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-    # CORS for both domains
-    nginx.ingress.kubernetes.io/cors-allow-origin: "https://syntra.goalixa.com, https://apisyntra.goalixa.com"
-    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
-    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, X-API-Key"
-    nginx.ingress.kubernetes.io/cors-max-age: "86400"
-    # Rate limiting for API
-    nginx.ingress.kubernetes.io/limit-rps: "60"
-    nginx.ingress.kubernetes.io/limit-burst: "100"
-    # Proxy settings
-    nginx.ingress.kubernetes.io/proxy-buffering: "on"
-    nginx.ingress.kubernetes.io/proxy-request-buffering: "on"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # Traefik configuration
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    # TLS configuration (Cloudflare provides SSL)
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.tls.certresolver: "cloudflare"
 spec:
-  ingressClassName: nginx
+  ingressClassName: traefik
   tls:
     # Cloudflare provides SSL termination
     - hosts:
