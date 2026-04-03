@@ -5,16 +5,10 @@ metadata:
   namespace: syntra
   annotations:
     # Simple Traefik configuration for Cloudflare proxy mode
+    # Cloudflare handles SSL termination - no TLS secret needed
     traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
   ingressClassName: traefik
-  tls:
-    # Cloudflare provides SSL termination
-    - hosts:
-        - syntra.goalixa.com
-        - apisyntra.goalixa.com
-      secretName: syntra-tls
   rules:
     # Admin Panel: syntra.goalixa.com
     - host: syntra.goalixa.com
