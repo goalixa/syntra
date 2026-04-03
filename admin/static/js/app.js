@@ -15,99 +15,75 @@ class SyntraAdmin {
   }
 
   init() {
-    // Skip auth - go directly to dashboard
-    this.isAuthenticated = true;
-    this.currentUser = { name: 'Admin User', role: 'Administrator' };
-    this.showDashboard();
+    // Check for authentication using goalixa-auth service
+    this.checkAuth();
     this.bindEvents();
     this.setupRefreshInterval();
   }
 
   // Authentication
   async checkAuth() {
-    const token = localStorage.getItem('syntra_token');
-    const user = localStorage.getItem('syntra_user');
+    // Check for auth cookies from goalixa-auth service
+    const accessToken = this.getCookie('goalixa_access');
 
-    if (token && user) {
-      try {
-        this.token = token;
-        this.currentUser = JSON.parse(user);
-        this.isAuthenticated = true;
-        this.showDashboard();
-      } catch (e) {
-        this.logout();
-      }
-    } else {
-      this.showAuthScreen();
+    if (!accessToken) {
+      // No auth cookies, redirect to login
+      this.redirectToLogin();
+      return;
     }
-  }
-
-  async authenticate() {
-    const authButton = document.getElementById('auth-button');
-    const statusText = document.querySelector('#auth-status .status-text');
-    const statusIndicator = document.querySelector('.status-indicator');
 
     try {
-      authButton.disabled = true;
-      authButton.innerHTML = '<span class="spinner"></span> Authenticating...';
-      statusText.textContent = 'Connecting to Syntra...';
-
-      // Call authentication endpoint
-      const response = await fetch(`${this.apiBase}/api/admin/auth`, {
+      // Verify token with backend
+      const response = await this.apiCall('/api/auth/verify', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        body: JSON.stringify({ token: accessToken })
       });
 
-      if (!response.ok) {
-        throw new Error('Authentication failed');
+      if (response.valid && response.user) {
+        this.isAuthenticated = true;
+        this.currentUser = response.user;
+        this.showDashboard();
+      } else {
+        // Token invalid, redirect to login
+        this.redirectToLogin();
       }
-
-      const data = await response.json();
-
-      this.token = data.token;
-      this.currentUser = data.user;
-      this.isAuthenticated = true;
-
-      localStorage.setItem('syntra_token', this.token);
-      localStorage.setItem('syntra_user', JSON.stringify(this.currentUser));
-
-      statusText.textContent = 'Authenticated';
-      statusIndicator.classList.add('connected');
-
-      setTimeout(() => this.showDashboard(), 500);
-
     } catch (error) {
-      console.error('Auth error:', error);
-      statusText.textContent = 'Authentication failed';
-      authButton.disabled = false;
-      authButton.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M10 2L2 10L10 18M18 10H2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Retry Authentication
-      `;
+      console.error('Auth check failed:', error);
+      this.redirectToLogin();
     }
   }
 
-  logout() {
+  getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+      return parts.pop().split(';').shift();
+    }
+    return null;
+  }
+
+  redirectToLogin() {
+    window.location.href = '/admin/login';
+  }
+
+  async logout() {
+    try {
+      await this.apiCall('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+
+    // Clear local storage
     localStorage.removeItem('syntra_token');
     localStorage.removeItem('syntra_user');
-    this.token = null;
-    this.currentUser = null;
-    this.isAuthenticated = false;
-    this.showAuthScreen();
+
+    // Redirect to login
+    this.redirectToLogin();
   }
+
 
   // Screen Management
-  showAuthScreen() {
-    document.getElementById('auth-screen').classList.add('active');
-    document.getElementById('dashboard-screen').classList.remove('active');
-  }
-
   showDashboard() {
-    document.getElementById('auth-screen').classList.remove('active');
     document.getElementById('dashboard-screen').classList.add('active');
     this.updateUserInfo();
     this.loadView(this.currentView);
@@ -122,9 +98,6 @@ class SyntraAdmin {
 
   // Navigation
   bindEvents() {
-    // Auth button
-    document.getElementById('auth-button').addEventListener('click', () => this.authenticate());
-
     // Logout button
     document.getElementById('logout-button').addEventListener('click', () => this.logout());
 
@@ -201,13 +174,10 @@ class SyntraAdmin {
       ...options.headers
     };
 
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-
     const response = await fetch(`${this.apiBase}${endpoint}`, {
       ...options,
-      headers
+      headers,
+      credentials: 'include'  // Include cookies for auth
     });
 
     if (response.status === 401) {

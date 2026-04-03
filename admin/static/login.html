@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Syntra Admin - Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/static/css/login.css">
+</head>
+<body>
+  <div class="login-container">
+    <!-- Logo and Branding -->
+    <div class="login-header">
+      <div class="login-logo">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="32" cy="32" r="30" stroke="currentColor" stroke-width="4"/>
+          <path d="M32 16V32L44 44" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="32" cy="32" r="4" fill="currentColor"/>
+        </svg>
+      </div>
+      <h1 class="login-title">Syntra Admin</h1>
+      <p class="login-subtitle">AI-Powered DevOps Orchestration</p>
+    </div>
+
+    <!-- Login Form -->
+    <div class="login-card">
+      <h2 class="card-title">Admin Login</h2>
+      <p class="card-subtitle">Sign in with your Goalixa account to access Syntra Admin</p>
+
+      <form id="login-form" class="login-form">
+        <div class="form-group">
+          <label for="email" class="form-label">Email address</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            class="form-input"
+            placeholder="you@goalixa.com"
+            required
+            autocomplete="email"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="password" class="form-label">Password</label>
+          <div class="password-input">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="form-input"
+              placeholder="••••••••"
+              required
+              autocomplete="current-password"
+            >
+            <button type="button" class="password-toggle" id="toggle-password">
+              <svg class="eye-open" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" fill="currentColor"/>
+                <path d="M10 3C4 3 1 9 1 9s3 6 9 6 8-6 9-6-3-6-9-6zm0 10a4 4 0 110-8 4 4 0 010 8z" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+              <svg class="eye-closed" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" fill="currentColor"/>
+                <path d="M10 3C4 3 1 9 1 9s3 6 9 6 8-6 9-6-3-6-9-6zm0 10a4 4 0 110-8 4 4 0 010 8z" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M3 3l14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-options">
+          <label class="checkbox-label">
+            <input type="checkbox" id="remember" name="remember">
+            <span>Remember me for 7 days</span>
+          </label>
+        </div>
+
+        <div id="login-error" class="error-message" style="display: none;"></div>
+
+        <button type="submit" class="btn-primary btn-large" id="login-button">
+          <span class="button-text">Sign In</span>
+          <span class="button-loading" style="display: none;">
+            <span class="spinner"></span>
+            Signing in...
+          </span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Admin Info -->
+    <div class="admin-info">
+      <p>🔒 Admin access required. Contact your administrator to request an account.</p>
+    </div>
+
+    <!-- Footer -->
+    <div class="login-footer">
+      <p>Powered by <a href="https://goalixa.com" target="_blank">Goalixa</a></p>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-overlay" style="display: none;">
+    <div class="loading-content">
+      <div class="spinner-large"></div>
+      <p>Authenticating...</p>
+    </div>
+  </div>
+
+  <script src="/admin/static/js/login.js"></script>
+</body>
+</html>

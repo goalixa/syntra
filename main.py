@@ -13,6 +13,7 @@ import os
 
 from api.routes import router as api_router
 from api.admin_routes import router as admin_router
+from api.auth_routes import router as auth_router
 from api.auth_middleware import get_security_headers
 from config import settings
 
@@ -60,14 +61,27 @@ app.include_router(api_router, prefix="/api")
 # Include admin routes (admin panel with token auth)
 app.include_router(admin_router, prefix="/api/admin")
 
+# Include auth proxy routes (proxies to goalixa-auth service)
+app.include_router(auth_router, prefix="/api/auth")
+
 # Mount static files for admin panel (CSS, JS)
 app.mount("/admin/static", StaticFiles(directory="admin/static"), name="admin_static")
+
+
+@app.get("/admin/login")
+async def login_page():
+    """Serve the login page."""
+    login_path = os.path.join("admin/static", "login.html")
+    if os.path.exists(login_path):
+        return FileResponse(login_path)
+    return Response(content="Login page not found", status_code=404)
 
 
 @app.get("/admin")
 @app.get("/admin/")
 async def admin_panel():
     """Serve the admin panel index.html."""
+    # Check if user has auth cookies, if not redirect to login
     index_path = os.path.join("admin/static", "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
