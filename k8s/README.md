@@ -66,7 +66,7 @@ kubectl logs -f deployment/syntra -n syntra
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `AUTH_SERVICE_URL` | `http://auth-service.goalixa-auth.svc.cluster.local` | Auth service URL |
+| `AUTH_SERVICE_URL` | `"http://auth.goalixa-auth.svc.cluster.local:80"` | Auth service URL |
 | `KUBECTL_PATH` | `/usr/bin/kubectl` | Path to kubectl binary |
 | `MODEL_NAME` | `claude` | AI model to use |
 

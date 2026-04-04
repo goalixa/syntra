@@ -106,7 +106,7 @@ tolerations: []
 affinity: {}
 
 env:
-  AUTH_SERVICE_URL: "http://auth-service.goalixa-auth.svc.cluster.local"
+  AUTH_SERVICE_URL: "http://auth.goalixa-auth.svc.cluster.local:80"
   OPENAI_API_KEY: ""
   CREWAI_API_KEY: ""
   LOG_LEVEL: "INFO"
