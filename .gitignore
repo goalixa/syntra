@@ -12,4 +12,13 @@ venv.bak/
 venv/
 .idea/
 .vscode/
-*.sublime-project           
+*.sublime-project
+
+# Secrets - NEVER commit these!
+.env
+.env.local
+.env.*.local
+**/secrets*.yaml
+**/secret*.yaml
+**/*secrets*.yaml
+**/k8s/*secrets*.yaml           

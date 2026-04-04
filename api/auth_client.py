@@ -9,6 +9,9 @@ import requests
 from typing import Optional, Dict, Any
 from datetime import datetime
 import jwt
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AuthServiceClient:
@@ -20,6 +23,7 @@ class AuthServiceClient:
             "http://goalixa-auth:5000"  # Default for local development
         )
         self.jwt_secret = os.getenv("AUTH_JWT_SECRET", "your-jwt-secret")
+        self.syntra_admin_api_key = os.getenv("SYNTRA_ADMIN_API_KEY", "")
         self.api_timeout = 10  # seconds
 
     def _make_request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
@@ -221,6 +225,158 @@ class AuthServiceClient:
             "email": payload.get("email"),
             "authenticated": True
         }
+
+    # ============================================================
+    # Syntra-Specific Methods
+    # ============================================================
+
+    def syntra_login(self, email: str, password: str) -> Dict[str, Any]:
+        """
+        Syntra-specific login that returns user with role information.
+
+        Args:
+            email: User email
+            password: User password
+
+        Returns:
+            Dict with success status, tokens, and user with Syntra role
+        """
+        return self._make_request(
+            "POST",
+            "/api/syntra/login",
+            json={"email": email, "password": password}
+        )
+
+    def syntra_validate_token(self, access_token: str) -> Dict[str, Any]:
+        """
+        Validate a Syntra JWT token with the auth service.
+
+        Args:
+            access_token: JWT access token
+
+        Returns:
+            Dict with valid status and user with Syntra profile
+        """
+        try:
+            return self._make_request(
+                "GET",
+                "/api/syntra/validate",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+        except requests.RequestException as e:
+            logger.error(f"Syntra token validation failed: {e}")
+            return {"valid": False, "error": str(e)}
+
+    def syntra_create_user(
+        self,
+        email: str,
+        password: str,
+        role: str = "operator",
+        department: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a new Syntra user via admin API.
+
+        Requires SYNTRA_ADMIN_API_KEY to be configured.
+
+        Args:
+            email: User email
+            password: User password
+            role: User role (admin, operator, viewer)
+            department: Optional department
+
+        Returns:
+            Dict with created user info
+        """
+        headers = {}
+        if self.syntra_admin_api_key:
+            headers["X-Syntra-Admin-API-Key"] = self.syntra_admin_api_key
+        else:
+            logger.warning("SYNTRA_ADMIN_API_KEY not configured, user creation may fail")
+
+        data = {
+            "email": email,
+            "password": password,
+            "role": role
+        }
+        if department:
+            data["department"] = department
+
+        return self._make_request(
+            "POST",
+            "/api/syntra/admin/create-user",
+            json=data,
+            headers=headers
+        )
+
+    def syntra_list_users(self, access_token: str) -> Dict[str, Any]:
+        """
+        List all Syntra users (admin only).
+
+        Args:
+            access_token: Admin JWT access token
+
+        Returns:
+            Dict with list of Syntra users
+        """
+        return self._make_request(
+            "GET",
+            "/api/syntra/users",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+
+    def syntra_get_user(self, user_id: int, access_token: str) -> Dict[str, Any]:
+        """
+        Get a specific Syntra user by ID.
+
+        Args:
+            user_id: User ID to fetch
+            access_token: JWT access token
+
+        Returns:
+            Dict with user info
+        """
+        return self._make_request(
+            "GET",
+            f"/api/syntra/users/{user_id}",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+
+    def syntra_update_user(
+        self,
+        user_id: int,
+        access_token: str,
+        role: Optional[str] = None,
+        department: Optional[str] = None,
+        active: Optional[bool] = None
+    ) -> Dict[str, Any]:
+        """
+        Update a Syntra user's profile (admin only).
+
+        Args:
+            user_id: User ID to update
+            access_token: Admin JWT access token
+            role: New role (optional)
+            department: New department (optional)
+            active: Active status (optional)
+
+        Returns:
+            Dict with updated user info
+        """
+        data = {}
+        if role is not None:
+            data["role"] = role
+        if department is not None:
+            data["department"] = department
+        if active is not None:
+            data["active"] = active
+
+        return self._make_request(
+            "PATCH",
+            f"/api/syntra/users/{user_id}",
+            json=data,
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
 
 
 # Global auth client instance

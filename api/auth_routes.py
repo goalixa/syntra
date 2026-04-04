@@ -5,7 +5,7 @@ Proxies authentication requests to the Goalixa Auth Service
 and manages JWT tokens for Syntra admin panel.
 """
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response, Depends
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import Optional
@@ -15,6 +15,9 @@ import os
 from api.auth_client import auth_client
 
 router = APIRouter()
+
+# Auth service URL (can be overridden by environment)
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://goalixa-auth:5000")
 
 # Auth service URL (can be overridden by environment)
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://goalixa-auth:5000")
@@ -325,6 +328,184 @@ async def revoke_all_sessions(request: Request):
             )
 
         return auth_client.revoke_all_sessions(access_token)
+
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Auth service unavailable: {str(e)}"
+        )
+
+
+# ============================================================
+# Syntra-Specific Authentication Endpoints
+# ============================================================
+
+class SyntraLoginRequest(BaseModel):
+    """Syntra login request model."""
+    email: str
+    password: str
+
+
+class SyntraCreateUserRequest(BaseModel):
+    """Syntra admin create user request model."""
+    email: str
+    password: str
+    role: str = "operator"  # admin, operator, viewer
+    department: Optional[str] = None
+
+
+@router.post("/syntra/login")
+async def syntra_login(creds: SyntraLoginRequest):
+    """
+    Syntra-specific login endpoint.
+
+    Returns user with Syntra role information and JWT tokens.
+    """
+    try:
+        # Call Syntra login endpoint on auth service
+        auth_response = requests.post(
+            f"{AUTH_SERVICE_URL}/api/syntra/login",
+            json={
+                "email": creds.email,
+                "password": creds.password
+            },
+            timeout=10
+        )
+
+        auth_response.raise_for_status()
+        auth_data = auth_response.json()
+
+        if not auth_data.get("success"):
+            return auth_data
+
+        # Return success with user info and tokens
+        return {
+            "success": True,
+            "user": auth_data.get("user"),
+            "access_token": auth_data.get("access_token"),
+            "refresh_token": auth_data.get("refresh_token"),
+        }
+
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Auth service unavailable: {str(e)}"
+        )
+
+
+@router.post("/syntra/validate")
+async def syntra_validate_token(request: Request):
+    """
+    Validate Syntra JWT token and return user with Syntra profile.
+
+    Expects Bearer token in Authorization header.
+    """
+    try:
+        # Get token from Authorization header
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            raise HTTPException(
+                status_code=401,
+                detail="Missing or invalid Authorization header"
+            )
+
+        token = auth_header[7:]  # Remove "Bearer " prefix
+
+        # Validate with auth service
+        auth_response = requests.get(
+            f"{AUTH_SERVICE_URL}/api/syntra/validate",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10
+        )
+
+        auth_response.raise_for_status()
+        return auth_response.json()
+
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Auth service unavailable: {str(e)}"
+        )
+
+
+@router.post("/syntra/admin/create-user")
+async def syntra_create_user(user_req: SyntraCreateUserRequest, request: Request):
+    """
+    Create a new Syntra user via admin API.
+
+    Requires X-Syntra-Admin-API-Key header for service-to-service communication.
+    """
+    try:
+        # Forward request to auth service with admin key
+        admin_key = os.getenv("SYNTRA_ADMIN_API_KEY", "")
+        if not admin_key:
+            raise HTTPException(
+                status_code=500,
+                detail="SYNTRA_ADMIN_API_KEY not configured"
+            )
+
+        auth_response = requests.post(
+            f"{AUTH_SERVICE_URL}/api/syntra/admin/create-user",
+            json={
+                "email": user_req.email,
+                "password": user_req.password,
+                "role": user_req.role,
+                "department": user_req.department
+            },
+            headers={"X-Syntra-Admin-API-Key": admin_key},
+            timeout=10
+        )
+
+        auth_response.raise_for_status()
+        return auth_response.json()
+
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Auth service unavailable: {str(e)}"
+        )
+
+
+@router.get("/syntra/users")
+async def syntra_list_users(request: Request):
+    """
+    List all Syntra users.
+
+    Requires admin role.
+    """
+    try:
+        access_token = request.cookies.get("goalixa_access")
+        if not access_token:
+            raise HTTPException(
+                status_code=401,
+                detail="Not authenticated"
+            )
+
+        return auth_client.syntra_list_users(access_token)
+
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Auth service unavailable: {str(e)}"
+        )
+
+
+@router.get("/syntra/users/{user_id}")
+async def syntra_get_user(user_id: int, request: Request):
+    """
+    Get a specific Syntra user by ID.
+
+    Requires admin role or own user ID.
+    """
+    try:
+        access_token = request.cookies.get("goalixa_access")
+        if not access_token:
+            raise HTTPException(
+                status_code=401,
+                detail="Not authenticated"
+            )
+
+        return auth_client.syntra_get_user(user_id, access_token)
 
     except requests.RequestException as e:
         raise HTTPException(
