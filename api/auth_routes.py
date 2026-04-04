@@ -6,18 +6,16 @@ and manages JWT tokens for Syntra admin panel.
 """
 
 from fastapi import APIRouter, HTTPException, Request, Response, Depends
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel
 from typing import Optional
 import requests
 import os
+import json
 
 from api.auth_client import auth_client
 
 router = APIRouter()
-
-# Auth service URL (can be overridden by environment)
-AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://goalixa-auth:5000")
 
 # Auth service URL (can be overridden by environment)
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://goalixa-auth:5000")
@@ -61,7 +59,7 @@ async def login(request: Request, creds: LoginRequest):
         auth_data = auth_response.json()
 
         if not auth_data.get("success"):
-            return auth_data
+            return JSONResponse(content=auth_data, status_code=401)
 
         # Create response with user data
         response_data = {
@@ -72,10 +70,9 @@ async def login(request: Request, creds: LoginRequest):
         }
 
         # Create response and set cookies from auth service
-        response = Response(
+        response = JSONResponse(
             content=response_data,
-            status_code=200,
-            media_type="application/json"
+            status_code=200
         )
 
         # Copy cookies from auth service response
@@ -132,10 +129,9 @@ async def refresh_token(request: Request):
             "access_token": auth_data.get("access_token")
         }
 
-        response = Response(
+        response = JSONResponse(
             content=response_data,
-            status_code=200,
-            media_type="application/json"
+            status_code=200
         )
 
         # Update cookies from auth service
@@ -183,10 +179,9 @@ async def logout(request: Request):
             )
 
         # Create response that clears cookies
-        response = Response(
-            content='{"success": true}',
-            status_code=200,
-            media_type="application/json"
+        response = JSONResponse(
+            content={"success": True},
+            status_code=200
         )
 
         # Clear auth cookies
@@ -201,10 +196,9 @@ async def logout(request: Request):
 
     except requests.RequestException:
         # Even if auth service fails, clear cookies
-        response = Response(
-            content='{"success": true}',
-            status_code=200,
-            media_type="application/json"
+        response = JSONResponse(
+            content={"success": True},
+            status_code=200
         )
 
         for cookie_name in ["goalixa_access", "goalixa_refresh"]:
@@ -376,15 +370,34 @@ async def syntra_login(creds: SyntraLoginRequest):
         auth_data = auth_response.json()
 
         if not auth_data.get("success"):
-            return auth_data
+            return JSONResponse(content=auth_data, status_code=401)
 
         # Return success with user info and tokens
-        return {
+        response_data = {
             "success": True,
             "user": auth_data.get("user"),
             "access_token": auth_data.get("access_token"),
             "refresh_token": auth_data.get("refresh_token"),
         }
+
+        response = JSONResponse(content=response_data)
+
+        # Set cookies from auth service
+        for cookie_name in ["goalixa_access", "goalixa_refresh"]:
+            if cookie_name in auth_response.cookies:
+                cookie = auth_response.cookies[cookie_name]
+                response.set_cookie(
+                    key=cookie_name,
+                    value=cookie.value,
+                    expires=cookie.expires,
+                    path=cookie.path,
+                    domain=cookie.domain,
+                    secure=cookie.secure,
+                    httponly=cookie.httponly,
+                    samesite=cookie.get('sameSite', 'lax')
+                )
+
+        return response
 
     except requests.RequestException as e:
         raise HTTPException(
@@ -512,4 +525,3 @@ async def syntra_get_user(user_id: int, request: Request):
             status_code=503,
             detail=f"Auth service unavailable: {str(e)}"
         )
-
