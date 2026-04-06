@@ -1,4 +1,6 @@
 .claude
+.pyc
+__pycache__.claude
 PLAN.md
 __pycache__
 *.pyc
@@ -21,4 +23,4 @@ venv/
 **/secrets*.yaml
 **/secret*.yaml
 **/*secrets*.yaml
-**/k8s/*secrets*.yaml           
+**/k8s/*secrets*.yaml       
